@@ -400,27 +400,46 @@ private fun AdvancedOptions(state: UiState, change: (UiState) -> Unit) {
             }
             if (expanded) {
                 HorizontalDivider()
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OptionPair(
-                        state.temperature,
-                        R.string.temperature,
-                        "temperature" in state.runtimeOptions,
-                        { change(state.copy(temperature = it)) },
-                        state.topP,
-                        R.string.top_p,
-                        "top_p" in state.runtimeOptions,
-                        { change(state.copy(topP = it)) },
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // 1. Presets Header and Chips
+                    Text(
+                        stringResource(R.string.preset_title),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
                     )
-                    OptionPair(
-                        state.topK,
-                        R.string.top_k,
-                        "top_k" in state.runtimeOptions,
-                        { change(state.copy(topK = it)) },
-                        state.penalty,
-                        R.string.repetition_penalty,
-                        "repetition_penalty" in state.runtimeOptions,
-                        { change(state.copy(penalty = it)) },
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        val stepsEnabled = "sample_steps" in state.runtimeOptions
+                        FilterChip(
+                            selected = state.steps == "4",
+                            onClick = { if (stepsEnabled) change(state.copy(steps = "4")) },
+                            label = { Text(stringResource(R.string.preset_turbo)) },
+                            enabled = stepsEnabled,
+                        )
+                        FilterChip(
+                            selected = state.steps == "8",
+                            onClick = { if (stepsEnabled) change(state.copy(steps = "8")) },
+                            label = { Text(stringResource(R.string.preset_balanced)) },
+                            enabled = stepsEnabled,
+                        )
+                        FilterChip(
+                            selected = state.steps == "16",
+                            onClick = { if (stepsEnabled) change(state.copy(steps = "16")) },
+                            label = { Text(stringResource(R.string.preset_studio)) },
+                            enabled = stepsEnabled,
+                        )
+                        FilterChip(
+                            selected = state.steps == "32",
+                            onClick = { if (stepsEnabled) change(state.copy(steps = "32")) },
+                            label = { Text(stringResource(R.string.preset_baseline)) },
+                            enabled = stepsEnabled,
+                        )
+                    }
+
+                    // 2. CFM Steps & Speed
                     OptionPair(
                         state.steps,
                         R.string.cfm_steps,
@@ -431,6 +450,90 @@ private fun AdvancedOptions(state: UiState, change: (UiState) -> Unit) {
                         "speed_factor" in state.runtimeOptions,
                         { change(state.copy(speed = it)) },
                     )
+
+                    // 3. Temperature & Seed (with random seed toggle)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        OutlinedTextField(
+                            state.temperature,
+                            { change(state.copy(temperature = it)) },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            enabled = "temperature" in state.runtimeOptions,
+                            label = { Text(stringResource(R.string.temperature)) },
+                        )
+                        OutlinedTextField(
+                            state.seed,
+                            { change(state.copy(seed = it)) },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            enabled = "seed" in state.runtimeOptions,
+                            label = { Text(stringResource(R.string.seed)) },
+                            trailingIcon = {
+                                IconButton(onClick = {
+                                    val nextSeed = if (state.seed == "-1") kotlin.random.Random.nextInt(1, 999999).toString() else "-1"
+                                    change(state.copy(seed = nextSeed))
+                                }) {
+                                    Icon(Icons.Default.Refresh, contentDescription = "Toggle Random Seed")
+                                }
+                            }
+                        )
+                    }
+
+                    // 4. Top P & Top K
+                    OptionPair(
+                        state.topP,
+                        R.string.top_p,
+                        "top_p" in state.runtimeOptions,
+                        { change(state.copy(topP = it)) },
+                        state.topK,
+                        R.string.top_k,
+                        "top_k" in state.runtimeOptions,
+                        { change(state.copy(topK = it)) },
+                    )
+
+                    // 5. Repetition Penalty & Fade-out Window (ms)
+                    OptionPair(
+                        state.penalty,
+                        R.string.repetition_penalty,
+                        "repetition_penalty" in state.runtimeOptions,
+                        { change(state.copy(penalty = it)) },
+                        state.fadeWindowMs,
+                        R.string.fade_window,
+                        "fade_window" in state.runtimeOptions,
+                        { change(state.copy(fadeWindowMs = it)) },
+                    )
+
+                    // 6. Dynamic Tail Padding (Option A 100% NPU) Switch
+                    if ("dynamic_padding" in state.runtimeOptions) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    stringResource(R.string.dynamic_padding),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                                Text(
+                                    stringResource(R.string.dynamic_padding_desc),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = state.dynamicPadding,
+                                onCheckedChange = { change(state.copy(dynamicPadding = it)) },
+                            )
+                        }
+                    }
+
                     Text(
                         stringResource(R.string.ui_options_capability_hint),
                         style = MaterialTheme.typography.bodySmall,

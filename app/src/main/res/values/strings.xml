@@ -90,6 +90,15 @@
     <string name="repetition_penalty">Penalty</string>
     <string name="speed">Speed</string>
     <string name="cfm_steps">CFM steps</string>
+    <string name="seed">Seed</string>
+    <string name="fade_window">Fade-out (ms)</string>
+    <string name="dynamic_padding">Dynamic Tail Padding (100% NPU)</string>
+    <string name="dynamic_padding_desc">1000-frame tail zero-padding &amp; anti-glitch streaming on NPU</string>
+    <string name="preset_title">Steps Preset</string>
+    <string name="preset_turbo">⚡ Turbo 4-step</string>
+    <string name="preset_balanced">⚖️ Balanced 8-step</string>
+    <string name="preset_studio">🎙️ Studio 16-step</string>
+    <string name="preset_baseline">📱 Baseline 32-step</string>
     <string name="synthesize_speech">Synthesize speech</string>
     <string name="processing">Processing</string>
     <string name="play">Play</string>

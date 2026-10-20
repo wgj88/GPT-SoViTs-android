@@ -74,7 +74,9 @@ def build_package():
             "repetition_penalty": True,
             "speed_factor": True,
             "seed": True,
-            "sample_steps": True
+            "sample_steps": True,
+            "fade_window": True,
+            "dynamic_padding": True
         },
         "reference_input_version": 1,
         "bundle_id": "v5turbo-snapdragon-native-full:v1",

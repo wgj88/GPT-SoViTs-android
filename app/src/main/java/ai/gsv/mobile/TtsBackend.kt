@@ -18,6 +18,9 @@ data class SynthesisOptions(
     val repetitionPenalty: Float = 1.35f,
     val speedFactor: Float = 1.0f,
     val sampleSteps: Int = 32,
+    val seed: Long = -1L,
+    val fadeWindowMs: Int = 50,
+    val dynamicPadding: Boolean = true,
 ) {
     init {
         require(temperature >= 0.0f && temperature <= 2.0f) { "temperature must be between 0 and 2" }
@@ -26,6 +29,7 @@ data class SynthesisOptions(
         require(repetitionPenalty > 0.0f && repetitionPenalty <= 3.0f) { "repetition penalty must be between 0 and 3" }
         require(speedFactor in 0.25f..4.0f) { "speed must be between 0.25 and 4" }
         require(sampleSteps in 1..128) { "sample steps must be between 1 and 128" }
+        require(fadeWindowMs in 0..500) { "fade window must be between 0 and 500 ms" }
     }
 
     fun isDefault() = this == SynthesisOptions()

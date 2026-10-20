@@ -416,23 +416,34 @@ class MainActivity : ComponentActivity() {
                 }
             }.onSuccess {
                 loaded(it)
+                val isV5Turbo = it.version in setOf("v5turbo", "v5dev") || it.executor.contains("v5turbo")
+                val allSupportedOptions = if (isV5Turbo) {
+                    it.runtimeOptions + setOf("temperature", "top_p", "top_k", "repetition_penalty", "speed_factor", "sample_steps", "seed", "fade_window", "dynamic_padding")
+                } else {
+                    it.runtimeOptions
+                }
                 ui = ui.copy(
                     busy = false,
                     modelInfo = "${it.name} / ${it.productVersion.ifBlank { it.version }} / ${it.sampleRate} Hz",
                     modelLoaded = true,
                     backend = engine.backendName,
-                    runtimeOptions = it.runtimeOptions,
+                    runtimeOptions = allSupportedOptions,
                     referenceOverrideSupported = it.referenceInputVersion >= 1,
                     hasPresetSpeaker = it.runtimeFile("sample_prompt.wav").isFile,
                     referenceExactPcm16kSamples = it.referencePcm16kSamples.takeIf { samples ->
                         it.referenceDurationPolicy == "exact_samples" && samples > 0
                     },
-                    temperature = if ("temperature" in it.runtimeOptions) ui.temperature else "1.0",
-                    topP = if ("top_p" in it.runtimeOptions) ui.topP else "1.0",
-                    topK = if ("top_k" in it.runtimeOptions) ui.topK else "10",
-                    penalty = if ("repetition_penalty" in it.runtimeOptions) ui.penalty else "1.35",
-                    speed = if ("speed_factor" in it.runtimeOptions) ui.speed else "1.0",
-                    steps = if ("sample_steps" in it.runtimeOptions) ui.steps else "32",
+                    temperature = if ("temperature" in allSupportedOptions) ui.temperature else "1.0",
+                    topP = if ("top_p" in allSupportedOptions) ui.topP else "1.0",
+                    topK = if ("top_k" in allSupportedOptions) ui.topK else "10",
+                    penalty = if ("repetition_penalty" in allSupportedOptions) ui.penalty else "1.35",
+                    speed = if ("speed_factor" in allSupportedOptions) ui.speed else "1.0",
+                    steps = if ("sample_steps" in allSupportedOptions) {
+                        if (isV5Turbo && (ui.steps == "32" || ui.steps.isBlank())) "4" else ui.steps
+                    } else "32",
+                    seed = if ("seed" in allSupportedOptions) ui.seed else "-1",
+                    fadeWindowMs = if ("fade_window" in allSupportedOptions) ui.fadeWindowMs else "50",
+                    dynamicPadding = if ("dynamic_padding" in allSupportedOptions) ui.dynamicPadding else true,
                     referenceUri = null,
                     referenceName = "",
                     referencePrompt = "",
@@ -493,12 +504,15 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             runCatching {
                 val options = SynthesisOptions(
-                    state.temperature.toFloat(),
-                    state.topP.toFloat(),
-                    state.topK.toInt(),
-                    state.penalty.toFloat(),
-                    state.speed.toFloat(),
-                    state.steps.toInt(),
+                    temperature = state.temperature.toFloatOrNull() ?: 1.0f,
+                    topP = state.topP.toFloatOrNull() ?: 1.0f,
+                    topK = state.topK.toIntOrNull() ?: 10,
+                    repetitionPenalty = state.penalty.toFloatOrNull() ?: 1.35f,
+                    speedFactor = state.speed.toFloatOrNull() ?: 1.0f,
+                    sampleSteps = state.steps.toIntOrNull() ?: 4,
+                    seed = state.seed.toLongOrNull() ?: -1L,
+                    fadeWindowMs = state.fadeWindowMs.toIntOrNull() ?: 50,
+                    dynamicPadding = state.dynamicPadding,
                 )
                 val reference = state.referenceUri?.let { uri ->
                     withContext(Dispatchers.IO) {
@@ -517,6 +531,7 @@ class MainActivity : ComponentActivity() {
                             SynthesisRequest(
                                 state.text.ifBlank { getString(R.string.default_sample_text) },
                                 language = state.textLanguage,
+                                seed = options.seed,
                                 options = options,
                                 reference = reference,
                             ),
@@ -784,6 +799,9 @@ class MainActivity : ComponentActivity() {
             penalty = state.getString(STATE_PENALTY, ui.penalty),
             speed = state.getString(STATE_SPEED, ui.speed),
             steps = state.getString(STATE_STEPS, ui.steps),
+            seed = state.getString(STATE_SEED, ui.seed),
+            fadeWindowMs = state.getString(STATE_FADE_WINDOW, ui.fadeWindowMs),
+            dynamicPadding = state.getBoolean(STATE_DYNAMIC_PADDING, ui.dynamicPadding),
             referenceUri = state.getString(STATE_REFERENCE_URI)?.takeIf(String::isNotBlank)?.let(Uri::parse),
             referenceName = state.getString(STATE_REFERENCE_NAME, ui.referenceName),
             referencePrompt = state.getString(STATE_REFERENCE_PROMPT, ui.referencePrompt),
@@ -867,6 +885,9 @@ class MainActivity : ComponentActivity() {
         outState.putString(STATE_PENALTY, ui.penalty)
         outState.putString(STATE_SPEED, ui.speed)
         outState.putString(STATE_STEPS, ui.steps)
+        outState.putString(STATE_SEED, ui.seed)
+        outState.putString(STATE_FADE_WINDOW, ui.fadeWindowMs)
+        outState.putBoolean(STATE_DYNAMIC_PADDING, ui.dynamicPadding)
         outState.putString(STATE_REFERENCE_URI, ui.referenceUri?.toString())
         outState.putString(STATE_REFERENCE_NAME, ui.referenceName)
         outState.putString(STATE_REFERENCE_PROMPT, ui.referencePrompt)
@@ -890,6 +911,9 @@ class MainActivity : ComponentActivity() {
         private const val STATE_PENALTY = "synthesis.penalty"
         private const val STATE_SPEED = "synthesis.speed"
         private const val STATE_STEPS = "synthesis.steps"
+        private const val STATE_SEED = "synthesis.seed"
+        private const val STATE_FADE_WINDOW = "synthesis.fade_window"
+        private const val STATE_DYNAMIC_PADDING = "synthesis.dynamic_padding"
         private const val STATE_REFERENCE_URI = "synthesis.reference_uri"
         private const val STATE_REFERENCE_NAME = "synthesis.reference_name"
         private const val STATE_REFERENCE_PROMPT = "synthesis.reference_prompt"
@@ -911,7 +935,10 @@ internal data class UiState(
     val topK: String = "10",
     val penalty: String = "1.35",
     val speed: String = "1.0",
-    val steps: String = "32",
+    val steps: String = "4",
+    val seed: String = "-1",
+    val fadeWindowMs: String = "50",
+    val dynamicPadding: Boolean = true,
     val busy: Boolean = false,
     val canPlay: Boolean = false,
     val hasPresetSpeaker: Boolean = false,

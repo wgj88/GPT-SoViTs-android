@@ -92,13 +92,17 @@ object QnnV5TurboRuntime {
                     val targetFrames = (phoneCount * 25).coerceIn(50, 800) // approx 25 frames per character
 
                     // 2. Option A: Dynamic Tail Zero-Padding Mel Generation on NPU
-                    val generatedMel = TimingContext.measure("dit.euler_4steps") {
-                        runOptionADit(targetFrames, steps = request.options.sampleSteps.coerceIn(4, 8))
+                    val generatedMel = TimingContext.measure("dit.euler_steps") {
+                        val steps = request.options.sampleSteps.coerceIn(1, 64)
+                        val seed = if (request.seed != -1L) request.seed else request.options.seed
+                        val temp = request.options.temperature.coerceIn(0.1f, 2.0f)
+                        val dynamicPadding = request.options.dynamicPadding
+                        runOptionADit(targetFrames, steps = steps, seed = seed, temperature = temp, dynamicPadding = dynamicPadding)
                     }
 
                     // 3. Vocoder Synthesis on Hexagon NPU
                     val pcmSamples = TimingContext.measure("vocoder.npu") {
-                        runVocoderChunks(generatedMel, targetFrames)
+                        runVocoderChunks(generatedMel, targetFrames, fadeWindowMs = request.options.fadeWindowMs.coerceIn(0, 500))
                     }
 
                     // 4. Output pristine 48kHz WAV
@@ -116,25 +120,32 @@ object QnnV5TurboRuntime {
 
         /**
          * Option A: 100% Hexagon Resident DiT with Dynamic Tail Zero-Padding.
-         * Padds to 1000 frames, solves flow-matching via 4 Euler steps on NPU, slices valid frames.
+         * Padds to 1000 frames, solves flow-matching via N Euler steps on NPU, slices valid frames.
          */
-        private fun runOptionADit(targetFrames: Int, steps: Int = 4): FloatArray {
+        private fun runOptionADit(
+            targetFrames: Int,
+            steps: Int = 4,
+            seed: Long = -1L,
+            temperature: Float = 1.0f,
+            dynamicPadding: Boolean = true,
+        ): FloatArray {
             val totalFrames = DIT_FRAMES
             val dt = 1.0f / steps
 
             // Initialize noise in xBuf [100, 1000]
             xBuf.clear()
             val xFloat = xBuf.asFloatBuffer()
-            val rnd = java.util.Random(20261020L)
+            val rnd = if (seed != -1L) java.util.Random(seed) else java.util.Random()
+            val noiseScale = (temperature * 0.5f).coerceIn(0.05f, 1.5f)
             for (i in 0 until MEL_CHANNELS * totalFrames) {
-                xFloat.put((rnd.nextGaussian() * 0.5f).toFloat())
+                xFloat.put((rnd.nextGaussian() * noiseScale).toFloat())
             }
 
             // condBuf: Fill first targetFrames, zero out the tail (Option A)
             condBuf.clear()
             val condFloat = condBuf.asFloatBuffer()
             for (t in 0 until totalFrames) {
-                val weight = if (t < targetFrames) 1.0f else 0.0f
+                val weight = if (!dynamicPadding || t < targetFrames) 1.0f else 0.0f
                 for (d in 0 until COND_DIM) {
                     condFloat.put(0.1f * weight)
                 }
@@ -178,7 +189,7 @@ object QnnV5TurboRuntime {
         /**
          * Stream valid mel into Vocoder DLC in 100-frame chunks on Hexagon NPU.
          */
-        private fun runVocoderChunks(validMel: FloatArray, validFrames: Int): ShortArray {
+        private fun runVocoderChunks(validMel: FloatArray, validFrames: Int, fadeWindowMs: Int = 50): ShortArray {
             val totalSamples = validFrames * SAMPLES_PER_FRAME
             val pcmOut = ShortArray(totalSamples)
             var pcmOffset = 0
@@ -218,6 +229,19 @@ object QnnV5TurboRuntime {
                 }
 
                 frameStart += chunkLen
+            }
+
+            // Apply smooth Hanning release fade-out to eliminate tail boundary clicks
+            if (fadeWindowMs > 0 && pcmOffset > 0) {
+                val fadeSamples = (fadeWindowMs * SAMPLE_RATE / 1000).coerceIn(1, pcmOffset)
+                val startIdx = pcmOffset - fadeSamples
+                for (i in 0 until fadeSamples) {
+                    val progress = i.toFloat() / fadeSamples
+                    // 0.5 * (1 + cos(pi * progress)) ramps from 1.0 down to 0.0
+                    val factor = 0.5f * (1.0f + kotlin.math.cos(Math.PI.toFloat() * progress))
+                    val idx = startIdx + i
+                    pcmOut[idx] = (pcmOut[idx] * factor).toInt().toShort()
+                }
             }
 
             return pcmOut
