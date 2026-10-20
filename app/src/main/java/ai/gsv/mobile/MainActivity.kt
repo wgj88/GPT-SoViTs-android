@@ -2,6 +2,9 @@ package ai.gsv.mobile
 
 import android.Manifest
 import android.media.MediaPlayer
+import android.media.MediaExtractor
+import android.media.MediaFormat
+import android.media.MediaMetadataRetriever
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -15,18 +18,22 @@ import android.os.ResultReceiver
 import android.provider.OpenableColumns
 import android.provider.Settings
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Row
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.lifecycleScope
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import dev.ffmpegkit.whisper.Whisper
+import dev.ffmpegkit.whisper.WhisperConfig
 import java.io.File
 import org.json.JSONArray
 import org.json.JSONObject
@@ -38,6 +45,9 @@ class MainActivity : ComponentActivity() {
     private var output: File? = null
     private var player: MediaPlayer? = null
     private var pendingApiPort: Int? = null
+    private var referenceAudioDialog by mutableStateOf<String?>(null)
+    private var transcribeLanguageDialog by mutableStateOf(false)
+    private var pickReferenceAfterStorageSettings = false
 
     private var ui by mutableStateOf(UiState())
 
@@ -45,10 +55,7 @@ class MainActivity : ComponentActivity() {
         uri?.let { rememberAndLoadModel(it, split = false) }
     }
     private val pickReference = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let {
-            runCatching { contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-            ui = ui.copy(referenceUri = it, referenceName = displayName(it))
-        }
+        uri?.let(::validateAndAcceptReferenceAudio)
     }
     private val saveOutput = registerForActivityResult(ActivityResultContracts.CreateDocument("audio/wav")) { uri ->
         val source = output
@@ -77,10 +84,21 @@ class MainActivity : ComponentActivity() {
     private val requestExternalRead = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) scanExternalModels(silent = false)
         else ui = ui.copy(status = getString(R.string.external_models_permission_required))
+        if (pickReferenceAfterStorageSettings) {
+            pickReferenceAfterStorageSettings = false
+            pickReference.launch(arrayOf("audio/*", "audio/wav", "audio/flac", "audio/mpeg"))
+        }
     }
     private val manageExternalStorage = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        if (hasExternalModelAccess()) scanExternalModels(silent = false)
-        else ui = ui.copy(status = getString(R.string.external_models_permission_required))
+        if (hasExternalModelAccess()) {
+            scanExternalModels(silent = false)
+        } else {
+            ui = ui.copy(status = getString(R.string.external_models_permission_required))
+        }
+        if (pickReferenceAfterStorageSettings) {
+            pickReferenceAfterStorageSettings = false
+            pickReference.launch(arrayOf("audio/*", "audio/wav", "audio/flac", "audio/mpeg"))
+        }
     }
     private val requestNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
         pendingApiPort?.let(::startApiService)
@@ -161,6 +179,9 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val candidateFiles = listOf(
+                    File(Environment.getExternalStorageDirectory(), "models/gsv/v5turbo-native-full.gsvm"),
+                    File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "v5turbo-native-full.gsvm"),
+                    File(Environment.getExternalStorageDirectory(), "models/gs/v5turbo-native-full.gsvm"),
                     File(Environment.getExternalStorageDirectory(), "models/gsv/v5turbo-snapdragon-npu.gsvm"),
                     File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "v5turbo-snapdragon-npu.gsvm"),
                     File(Environment.getExternalStorageDirectory(), "models/gs/v5turbo-snapdragon-npu.gsvm"),
@@ -190,6 +211,24 @@ class MainActivity : ComponentActivity() {
         WindowInsetsControllerCompat(window, window.decorView).apply {
             isAppearanceLightStatusBars = !dark
             isAppearanceLightNavigationBars = !dark
+        }
+    }
+
+    private fun requestStorageAccessThenPickReference() {
+        if (hasExternalModelAccess()) {
+            pickReference.launch(arrayOf("audio/*", "audio/wav", "audio/flac", "audio/mpeg"))
+            return
+        }
+        pickReferenceAfterStorageSettings = true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val appSettings = Intent(
+                Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                Uri.parse("package:$packageName"),
+            )
+            runCatching { manageExternalStorage.launch(appSettings) }
+                .onFailure { manageExternalStorage.launch(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)) }
+        } else {
+            requestExternalRead.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
     }
 
@@ -591,6 +630,136 @@ class MainActivity : ComponentActivity() {
 
     private fun openWebsite(url: String) = startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
 
+    private fun transcribeReferenceAudio(language: String) {
+        val uri = ui.referenceUri ?: return
+        if (ui.busy) return
+        require(language == "zh" || language == "en")
+        setBusy(getString(R.string.whisper_preparing))
+        lifecycleScope.launch {
+            var wavFile: File? = null
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    val decoded = ReferenceAudioDecoder.decode(
+                        context = this@MainActivity,
+                        uri = uri,
+                        text = "transcribe",
+                        language = language,
+                    )
+                    wavFile = File(cacheDir, "whisper-reference-${System.currentTimeMillis()}.wav")
+                    writeWhisperWav(wavFile!!, decoded.pcm16k)
+                    val modelFile = WhisperModelManager.ensureModel(filesDir) { percent ->
+                        runOnUiThread {
+                            if (ui.busy) ui = ui.copy(status = getString(R.string.whisper_downloading, percent))
+                        }
+                    }
+                    val model = Whisper.loadModel(this@MainActivity, modelFile.absolutePath)
+                    try {
+                        Whisper.transcribe(
+                            model,
+                            wavFile!!.absolutePath,
+                            WhisperConfig(language = language, threads = 4),
+                        )
+                    } finally {
+                        Whisper.releaseModel(model)
+                    }
+                }
+                val transcript = result.text.trim()
+                check(transcript.isNotBlank()) { getString(R.string.whisper_empty_result) }
+                ui = ui.copy(
+                    referencePrompt = transcript,
+                    referenceLanguage = language,
+                    busy = false,
+                    status = getString(R.string.whisper_done, result.processingTimeMs / 1000.0),
+                )
+            } catch (error: Exception) {
+                ui = ui.copy(
+                    busy = false,
+                    status = getString(R.string.whisper_failed, error.message ?: error.javaClass.simpleName),
+                )
+            } finally {
+                wavFile?.delete()
+            }
+        }
+    }
+
+    private fun writeWhisperWav(file: File, samples: FloatArray) {
+        val dataBytes = samples.size * 2
+        file.outputStream().buffered().use { raw ->
+            fun writeAscii(value: String) = raw.write(value.toByteArray(Charsets.US_ASCII))
+            fun writeLe16(value: Int) { raw.write(value and 0xff); raw.write((value shr 8) and 0xff) }
+            fun writeLe32(value: Int) {
+                raw.write(value and 0xff); raw.write((value shr 8) and 0xff)
+                raw.write((value shr 16) and 0xff); raw.write((value shr 24) and 0xff)
+            }
+            writeAscii("RIFF"); writeLe32(36 + dataBytes); writeAscii("WAVE")
+            writeAscii("fmt "); writeLe32(16); writeLe16(1); writeLe16(1)
+            writeLe32(16_000); writeLe32(32_000); writeLe16(2); writeLe16(16)
+            writeAscii("data"); writeLe32(dataBytes)
+            samples.forEach { sample ->
+                val value = (sample.coerceIn(-1f, 1f) * if (sample < 0f) 32768f else 32767f).toInt()
+                writeLe16(value)
+            }
+        }
+    }
+
+    private fun validateAndAcceptReferenceAudio(uri: Uri) {
+        lifecycleScope.launch {
+            val durationMillis = withContext(Dispatchers.IO) {
+                readAudioDurationMillis(uri)
+            }
+            if (durationMillis == null) {
+                referenceAudioDialog = getString(R.string.reference_duration_unreadable)
+                return@launch
+            }
+            if (durationMillis > MAX_REFERENCE_DURATION_MILLIS) {
+                referenceAudioDialog = getString(
+                    R.string.reference_duration_too_long,
+                    durationMillis / 1000.0,
+                    MAX_REFERENCE_DURATION_SECONDS,
+                )
+                return@launch
+            }
+            runCatching {
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            ui = ui.copy(referenceUri = uri, referenceName = displayName(uri))
+        }
+    }
+
+    /** Read container metadata only; never decode a potentially long file just to validate its duration. */
+    private fun readAudioDurationMillis(uri: Uri): Long? {
+        val metadataDuration = runCatching {
+            MediaMetadataRetriever().useRetriever { retriever ->
+                retriever.setDataSource(this, uri)
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+            }
+        }.getOrNull()?.takeIf { it >= 0L }
+        if (metadataDuration != null) return metadataDuration
+
+        val extractor = MediaExtractor()
+        return try {
+            extractor.setDataSource(this, uri, null)
+            (0 until extractor.trackCount)
+                .asSequence()
+                .map { extractor.getTrackFormat(it) }
+                .filter { it.getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true }
+                .mapNotNull { format ->
+                    if (format.containsKey(MediaFormat.KEY_DURATION)) {
+                        format.getLong(MediaFormat.KEY_DURATION) / 1_000L
+                    } else null
+                }
+                .firstOrNull { it >= 0L }
+        } catch (_: Exception) {
+            null
+        } finally {
+            extractor.release()
+        }
+    }
+
+    private inline fun <T> MediaMetadataRetriever.useRetriever(block: (MediaMetadataRetriever) -> T): T {
+        return try { block(this) } finally { release() }
+    }
+
     private fun displayName(uri: Uri): String {
         val value = contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
             if (cursor.moveToFirst()) cursor.getString(0) else null
@@ -630,7 +799,11 @@ class MainActivity : ComponentActivity() {
             onSynthesize = ::synthesize,
             onPlay = ::play,
             onSave = ::save,
-            onPickReference = { pickReference.launch(arrayOf("audio/*", "audio/wav", "audio/flac", "audio/mpeg")) },
+            onPickReference = ::requestStorageAccessThenPickReference,
+            onTranscribeReference = {
+                if (ui.referenceLanguage == "auto") transcribeLanguageDialog = true
+                else transcribeReferenceAudio(ui.referenceLanguage)
+            },
             onPickModel = { pickModel.launch(packageTypes) },
             onScan = ::requestExternalModelScan,
             onLoadModel = ::loadModelRecord,
@@ -640,6 +813,42 @@ class MainActivity : ComponentActivity() {
             onOpenProject = { openWebsite(PROJECT_URL) },
             onOpenUpstream = { openWebsite(UPSTREAM_URL) },
         )
+        if (transcribeLanguageDialog) {
+            AlertDialog(
+                onDismissRequest = { transcribeLanguageDialog = false },
+                title = { Text(stringResource(R.string.whisper_choose_language_title)) },
+                text = { Text(stringResource(R.string.whisper_choose_language_message)) },
+                confirmButton = {
+                    Row {
+                        TextButton(onClick = {
+                            transcribeLanguageDialog = false
+                            transcribeReferenceAudio("zh")
+                        }) { Text(stringResource(R.string.language_chinese)) }
+                        TextButton(onClick = {
+                            transcribeLanguageDialog = false
+                            transcribeReferenceAudio("en")
+                        }) { Text(stringResource(R.string.language_english)) }
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { transcribeLanguageDialog = false }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                },
+            )
+        }
+        referenceAudioDialog?.let { message ->
+            AlertDialog(
+                onDismissRequest = { referenceAudioDialog = null },
+                title = { Text(stringResource(R.string.reference_audio_check_title)) },
+                text = { Text(message) },
+                confirmButton = {
+                    TextButton(onClick = { referenceAudioDialog = null }) {
+                        Text(stringResource(R.string.ok))
+                    }
+                },
+            )
+        }
     }
 
     override fun onDestroy() {
@@ -667,6 +876,9 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
+        private const val MAX_REFERENCE_DURATION_SECONDS = 30
+        private const val MAX_REFERENCE_DURATION_MILLIS = MAX_REFERENCE_DURATION_SECONDS * 1000L
+
         private val packageTypes = arrayOf("application/zip", "application/octet-stream", "*/*")
         private const val PROJECT_URL = "https://github.com/wgj88/GPT-SoViTs-android"
         private const val UPSTREAM_URL = "https://github.com/RVC-Boss/GPT-SoVITS"

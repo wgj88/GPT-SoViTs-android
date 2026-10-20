@@ -1,7 +1,7 @@
 package ai.gsv.mobile
 
 object GsvRuntime {
-    val engine = TtsEngine(listOf(V5TurboBridgeBackend(), QnnHtpBackend(), CpuBackend()))
+    val engine = TtsEngine(listOf(V5TurboNativeBackend(), V5TurboBridgeBackend(), QnnHtpBackend(), CpuBackend()))
     val engineLock = Any()
 
     private var activityInstances = 0

@@ -40,6 +40,7 @@ android {
                 "**/libQnnHtpV68Skel.so",
                 "**/libQnnHtpV68Stub.so",
             )
+            pickFirsts += "**/libc++_shared.so"
         }
     }
     compileOptions {
@@ -61,6 +62,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("org.nanohttpd:nanohttpd:2.3.1")
+    implementation("dev.ffmpegkit-maintained:whisper-android:1.0.0")
     implementation("org.pytorch:pytorch_android:2.1.0")
     // QNN is the first-class ONNX Runtime build for the NPU path.  It brings the
     // QNN execution provider. Pin the native runtime to the QAIRT SDK generation used by

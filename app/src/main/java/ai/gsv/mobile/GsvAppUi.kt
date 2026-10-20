@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -82,6 +83,7 @@ internal fun GsvAppUi(
     onPlay: () -> Unit,
     onSave: () -> Unit,
     onPickReference: () -> Unit,
+    onTranscribeReference: () -> Unit,
     onPickModel: () -> Unit,
     onScan: () -> Unit,
     onLoadModel: (ModelRecord) -> Unit,
@@ -162,6 +164,7 @@ internal fun GsvAppUi(
                 onPlay,
                 onSave,
                 onPickReference,
+                onTranscribeReference,
                 onOpenModels = { tab = AppTab.MODELS },
                 Modifier.padding(padding),
             )
@@ -199,6 +202,7 @@ private fun SynthesisScreen(
     play: () -> Unit,
     save: () -> Unit,
     pickReference: () -> Unit,
+    transcribeReference: () -> Unit,
     onOpenModels: () -> Unit,
     modifier: Modifier,
 ) {
@@ -258,6 +262,20 @@ private fun SynthesisScreen(
                     supportingText = { Text(stringResource(R.string.ui_reference_transcript_hint)) },
                     minLines = 2,
                     modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedButton(
+                    onClick = transcribeReference,
+                    enabled = !state.busy,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(Icons.Default.TextFields, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.whisper_transcribe_reference))
+                }
+                Text(
+                    stringResource(R.string.whisper_transcribe_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 LanguageChoices(R.string.reference_language, state.referenceLanguage) {
                     change(state.copy(referenceLanguage = it))
