@@ -1086,11 +1086,15 @@ private data class ReleaseArtifact(val fileName: String, val sha256: String) {
         val CPU_PIPELINE = ReleaseArtifact("v2pp-cpu-pipeline.gsvm", "7fcbc0bb520fa9c3eedd1ccccace443ced2185b8ca1ab2c915fd764f5e6656d7")
         val CPU_FIREFLY = ReleaseArtifact("firefly-v2pp-cpu.gsvm", "cc6fb5cdd51e0d4638de1d018a7fcbf642fb0f0b4540770a15f02f167ceeb3af")
         fun qnnPipeline(target: QualcommTargetSoc): ReleaseArtifact = when (target) {
+            QualcommTargetSoc.SNAPDRAGON_8_PLUS_GEN_1,
+            QualcommTargetSoc.SNAPDRAGON_8_GEN_2,
             QualcommTargetSoc.SNAPDRAGON_8_GEN_3 -> ReleaseArtifact("v2pp-sm8650-pipeline.qnn.gsvm", "933af9777eb5095d46b904cfb083922acf76e2e7c645b7533ac295d01c5700c8")
             QualcommTargetSoc.SNAPDRAGON_8_ELITE -> ReleaseArtifact("v2pp-sm8750-pipeline.qnn.gsvm", "d3805f7c8de4db2bb733a5737aea7404d81133ef3d4c8caf1a272f6943e6fe7a")
             QualcommTargetSoc.SNAPDRAGON_8_ELITE_GEN_5 -> ReleaseArtifact("v2pp-sm8850-pipeline.qnn.gsvm", "a90d92bb80cebd276e1f7d42887aefb396549d6579de3f0ff8049a5a345ac172")
         }
         fun qnnFirefly(target: QualcommTargetSoc): ReleaseArtifact = when (target) {
+            QualcommTargetSoc.SNAPDRAGON_8_PLUS_GEN_1,
+            QualcommTargetSoc.SNAPDRAGON_8_GEN_2,
             QualcommTargetSoc.SNAPDRAGON_8_GEN_3 -> ReleaseArtifact("firefly-v2pp-sm8650.qnn.gsvm", "c35484ad63218af892667a9f2a9de7887f884850c5cb05c4ed2ebefea5206f1a")
             QualcommTargetSoc.SNAPDRAGON_8_ELITE -> ReleaseArtifact("firefly-v2pp-sm8750.qnn.gsvm", "8ad26fc196f345b24071ee14e5c3aa1c4494119c407edebdba4cee3ec9d55ea4")
             QualcommTargetSoc.SNAPDRAGON_8_ELITE_GEN_5 -> ReleaseArtifact("firefly-v2pp-sm8850.qnn.gsvm", "b1cdec977f787a0bdc9f9f61f4c83d4754703552430c6ce05c19662a1130beb2")

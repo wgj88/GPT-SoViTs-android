@@ -563,7 +563,7 @@ data class ModelPackage(
             if (parsed.executor == "qnn-htp") {
                 QualcommTargetPolicy.requireArtifactIdentity(parsed)
                 require(parsed.strictCpuFallback) { "QNN package enables CPU neural fallback" }
-                if (parsed.referenceInputVersion >= 1) {
+                if (parsed.referenceInputVersion >= 1 && parsed.version == "v2ProPlus") {
                     require(parsed.referenceDurationPolicy == "exact_samples") {
                         "QNN package has an unsupported reference duration policy"
                     }

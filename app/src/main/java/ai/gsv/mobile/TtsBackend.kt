@@ -97,7 +97,7 @@ class QnnHtpBackend(private val runtime: QnnRuntime = OrtQnnRuntime) : Execution
     override fun open(model: ModelPackage): ExecutionSession {
         val status = QualcommTargetPolicy.current()
         require(status.isProductTarget) {
-            "this device is not a supported QNN product target (Snapdragon 8 Gen 3, 8 Elite, or 8 Elite Gen 5)"
+            "this device is not a supported QNN product target (Snapdragon 8+ Gen 1, 8 Gen 2, 8 Gen 3, 8 Elite, or 8 Elite Gen 5)"
         }
         if (model.executor == "qnn-htp") {
             require(QualcommTargetPolicy.isCompatible(model, status)) {
@@ -395,7 +395,7 @@ internal fun requireSupportedLanguage(language: String, field: String = "languag
     }
 }
 
-private object WavWriter {
+internal object WavWriter {
     fun write(file: File, pcm: ShortArray, sampleRate: Int) {
         RandomAccessFile(file, "rw").use { out ->
             out.setLength(0)

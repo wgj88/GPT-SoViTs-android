@@ -10,6 +10,7 @@ val qnnRuntimeVersion = "2.48.0"
 android {
     namespace = "ai.gsv.mobile"
     compileSdk = 34
+    ndkVersion = "27.2.12479018"
 
     defaultConfig {
         applicationId = "ai.gsv.mobile"
@@ -23,9 +24,10 @@ android {
     }
 
     buildFeatures { compose = true; buildConfig = true }
-    externalNativeBuild {
-        cmake { path = file("src/main/cpp/CMakeLists.txt") }
-    }
+    // Precompiled native libraries reside directly under src/main/jniLibs/
+    // externalNativeBuild {
+    //     cmake { path = file("src/main/cpp/CMakeLists.txt") }
+    // }
     bundle { language { enableSplit = false } }
     packaging {
         jniLibs {
@@ -37,10 +39,6 @@ android {
                 "**/libQnnDspV66Stub.so",
                 "**/libQnnHtpV68Skel.so",
                 "**/libQnnHtpV68Stub.so",
-                "**/libQnnHtpV69Skel.so",
-                "**/libQnnHtpV69Stub.so",
-                "**/libQnnHtpV73Skel.so",
-                "**/libQnnHtpV73Stub.so",
             )
         }
     }

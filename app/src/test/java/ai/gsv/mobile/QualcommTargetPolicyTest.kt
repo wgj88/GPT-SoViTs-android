@@ -76,6 +76,14 @@ class QualcommTargetPolicyTest {
             QualcommTargetSoc.SNAPDRAGON_8_ELITE,
             QualcommTargetSoc.fromPlatformStrings(listOf("qcom", "SM8750")),
         )
+        assertEquals(
+            QualcommTargetSoc.SNAPDRAGON_8_PLUS_GEN_1,
+            QualcommTargetSoc.fromPlatformStrings(listOf("SM8475", "taro")),
+        )
+        assertEquals(
+            QualcommTargetSoc.SNAPDRAGON_8_GEN_2,
+            QualcommTargetSoc.fromPlatformStrings(listOf("SM8550", "kalama")),
+        )
         assertEquals(null, QualcommTargetSoc.fromPlatformStrings(listOf("sun", "fooSM8750")))
     }
 

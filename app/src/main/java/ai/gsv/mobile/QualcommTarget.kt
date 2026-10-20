@@ -11,6 +11,22 @@ enum class QualcommTargetSoc(
     val htpArch: String,
     private val platformPrefixes: Set<String>,
 ) {
+    SNAPDRAGON_8_PLUS_GEN_1(
+        "snapdragon_8_plus_gen_1",
+        "Snapdragon 8+ Gen 1",
+        "SM8475",
+        43,
+        "V69",
+        setOf("SM8475", "SM8450", "TARO"),
+    ),
+    SNAPDRAGON_8_GEN_2(
+        "snapdragon_8_gen_2",
+        "Snapdragon 8 Gen 2",
+        "SM8550",
+        50,
+        "V73",
+        setOf("SM8550", "KALAMA"),
+    ),
     SNAPDRAGON_8_GEN_3(
         "snapdragon_8_gen_3",
         "Snapdragon 8 Gen 3",
@@ -121,7 +137,7 @@ object QualcommTargetPolicy {
     fun explain(model: ModelPackage, status: QualcommTargetStatus = current()): String {
         if (model.executor != "qnn-htp") return "not a QNN HTP model package"
         if (!status.isProductTarget) {
-            return "device is outside the QNN product targets (Snapdragon 8 Gen 3, 8 Elite, and 8 Elite Gen 5)"
+            return "device is outside the QNN product targets (Snapdragon 8+ Gen 1, 8 Gen 2, 8 Gen 3, 8 Elite, and 8 Elite Gen 5)"
         }
         val target = requireNotNull(status.target)
         if (model.targetSoc != target.id) {
