@@ -81,6 +81,8 @@ private object OrtQnnRuntime : QnnRuntime {
         return when (val engine = descriptor.optString("engine")) {
             "gpt-sovits-v2pp-qnn-buckets" ->
                 QnnV2ppRuntime.openArtifactSession(model, target, descriptor)
+            "gpt-sovits-v5-turbo-qnn" ->
+                QnnV5TurboRuntime.openArtifactSession(model, target, descriptor)
             else -> error("QNN executor engine is not implemented: $engine")
         }
     }
