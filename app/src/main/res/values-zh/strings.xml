@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">GSV Mobile</string>
+    <string name="app_name">GPT-SoVITS V5 NPU</string>
     <string name="settings">设置</string>
     <string name="tab_synthesis">合成</string>
     <string name="tab_models">模型</string>
@@ -209,4 +209,15 @@
     <string name="update_prompt_message">当前版本：%1$s\n最新版本：%2$s\n可打开 Release 页面查看并下载更新。</string>
     <string name="update_open_release">查看 Release</string>
     <string name="inference_progress">%1$s  %2$d/%3$d · %4$.1f it/s</string>
+    <string name="npu_acceleration_title">高通 Hexagon NPU 硬件加速</string>
+    <string name="npu_acceleration_desc">100% 端侧硬件加速 · 免云端依赖 · 48kHz 超高清实时合成</string>
+    <string name="import_voice_package">导入音色包 (.gsvm)</string>
+    <string name="scan_local_models">扫描本地音色 (/sdcard/models/gsv 及 Download)</string>
+    <string name="scan_models_hint">支持将自定义训练或导出的 .gsvm 文件放入手机 Download 目录，点击扫描即可自动识别。</string>
+    <string name="model_in_use">当前使用中</string>
+    <string name="enable_model">启用此音色</string>
+    <string name="default_sample_text">你好，欢迎使用 GPT-SoVITS V5 骁龙 NPU 离线语音合成。</string>
+    <string name="detected_soc_info">检测到设备平台：%1$s (%2$s)</string>
+    <string name="soc_npu_ready">Hexagon NPU 硬件加速就绪</string>
+    <string name="voice_model_management">音色包管理</string>
 </resources>

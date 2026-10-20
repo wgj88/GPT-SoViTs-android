@@ -17,7 +17,7 @@ import java.security.MessageDigest
  * directly to the resident Qualcomm Hexagon NPU GPT-SoVITS V5 Turbo engine.
  */
 class V5TurboBridgeBackend(
-    private val endpoint: String = "http://127.0.0.1:9880"
+    private val endpoint: String = "http://127.0.0.1:9872"
 ) : ExecutionBackend {
 
     override fun supports(model: ModelPackage): Boolean {
@@ -73,10 +73,14 @@ class V5TurboBridgeSession(
                     require(request.text.isNotBlank()) { "text must not be empty" }
                 }
 
-                // 1. Sync reference speaker if provided
-                request.reference?.let { ref ->
+                // 1. Sync reference speaker if provided, or model preset prompt
+                if (request.reference != null) {
                     TimingContext.measure("reference.sync") {
-                        syncSpeakerIfNeeded(ref)
+                        syncSpeakerIfNeeded(request.reference)
+                    }
+                } else if (cachedSpeakerHash == null) {
+                    TimingContext.measure("model.preset_speaker.sync") {
+                        syncModelPresetSpeaker()
                     }
                 }
 
@@ -111,6 +115,16 @@ class V5TurboBridgeSession(
             cachedSpeakerHash = hash
         } finally {
             tempWav.delete()
+        }
+    }
+
+    private fun syncModelPresetSpeaker() {
+        val presetWav = model.runtimeFile("sample_prompt.wav")
+        val presetTxt = model.runtimeFile("sample_prompt.txt")
+        if (presetWav.isFile) {
+            val promptText = if (presetTxt.isFile) presetTxt.readText().trim() else "你好，欢迎使用 GPT-SoVITS V5 离线极速语音合成。"
+            uploadSpeakerMultipart(presetWav, promptText, "zh")
+            cachedSpeakerHash = sha256("preset:${presetWav.length()}")
         }
     }
 

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">GSV Mobile</string>
+    <string name="app_name">GPT-SoVITS V5 NPU</string>
     <string name="settings">Settings</string>
     <string name="tab_synthesis">Synthesis</string>
     <string name="tab_models">Models</string>
@@ -209,4 +209,15 @@
     <string name="update_prompt_message">Installed: %1$s\nLatest: %2$s\nOpen the release page to review and download the update.</string>
     <string name="update_open_release">View release</string>
     <string name="inference_progress">%1$s  %2$d/%3$d · %4$.1f it/s</string>
+    <string name="npu_acceleration_title">Qualcomm Hexagon NPU Hardware Acceleration</string>
+    <string name="npu_acceleration_desc">100% On-device acceleration · Zero cloud dependency · 48kHz HD Real-time TTS</string>
+    <string name="import_voice_package">Import Voice Model (.gsvm)</string>
+    <string name="scan_local_models">Scan Local Models (/sdcard/models/gsv &amp; Download)</string>
+    <string name="scan_models_hint">Place trained or exported .gsvm model packages into your device Download directory and click Scan to load automatically.</string>
+    <string name="model_in_use">In Use</string>
+    <string name="enable_model">Enable Voice</string>
+    <string name="default_sample_text">Hello, welcome to GPT-SoVITS V5 Snapdragon NPU offline voice synthesis.</string>
+    <string name="detected_soc_info">Detected Platform: %1$s (%2$s)</string>
+    <string name="soc_npu_ready">Hexagon NPU Hardware Acceleration Ready</string>
+    <string name="voice_model_management">Voice Model Management</string>
 </resources>
