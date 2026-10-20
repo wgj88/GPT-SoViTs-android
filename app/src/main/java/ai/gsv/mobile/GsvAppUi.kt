@@ -49,6 +49,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -401,89 +403,76 @@ private fun AdvancedOptions(state: UiState, change: (UiState) -> Unit) {
             if (expanded) {
                 HorizontalDivider()
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    // 1. Presets Header and Chips
-                    Text(
-                        stringResource(R.string.preset_title),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Row(
+                    // 1. CFM Steps Slider (consistent Material 3 slider style)
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         val stepsEnabled = "sample_steps" in state.runtimeOptions
-                        FilterChip(
-                            selected = state.steps == "4",
-                            onClick = { if (stepsEnabled) change(state.copy(steps = "4")) },
-                            label = { Text(stringResource(R.string.preset_turbo)) },
+                        val currentSteps = state.steps.toIntOrNull() ?: 4
+                        val stepHint = when {
+                            currentSteps <= 4 -> stringResource(R.string.preset_turbo)
+                            currentSteps <= 8 -> stringResource(R.string.preset_balanced)
+                            currentSteps <= 16 -> stringResource(R.string.preset_studio)
+                            else -> stringResource(R.string.preset_baseline)
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                stringResource(R.string.cfm_steps),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                            )
+                            Text(
+                                "$currentSteps 步  ($stepHint)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (stepsEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                        Slider(
+                            value = currentSteps.toFloat().coerceIn(1f, 32f),
+                            onValueChange = {
+                                if (stepsEnabled) change(state.copy(steps = it.toInt().toString()))
+                            },
+                            valueRange = 1f..32f,
+                            steps = 30,
                             enabled = stepsEnabled,
+                            colors = SliderDefaults.colors(
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
                         )
-                        FilterChip(
-                            selected = state.steps == "8",
-                            onClick = { if (stepsEnabled) change(state.copy(steps = "8")) },
-                            label = { Text(stringResource(R.string.preset_balanced)) },
-                            enabled = stepsEnabled,
-                        )
-                        FilterChip(
-                            selected = state.steps == "16",
-                            onClick = { if (stepsEnabled) change(state.copy(steps = "16")) },
-                            label = { Text(stringResource(R.string.preset_studio)) },
-                            enabled = stepsEnabled,
-                        )
-                        FilterChip(
-                            selected = state.steps == "32",
-                            onClick = { if (stepsEnabled) change(state.copy(steps = "32")) },
-                            label = { Text(stringResource(R.string.preset_baseline)) },
-                            enabled = stepsEnabled,
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text("1步", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("4步(极速)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                            Text("8步(平衡)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("16步", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("32步(原版)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
 
-                    // 2. CFM Steps & Speed
+                    // 2. Speed & Temperature
                     OptionPair(
-                        state.steps,
-                        R.string.cfm_steps,
-                        "sample_steps" in state.runtimeOptions,
-                        { change(state.copy(steps = it)) },
                         state.speed,
                         R.string.speed,
                         "speed_factor" in state.runtimeOptions,
                         { change(state.copy(speed = it)) },
+                        state.temperature,
+                        R.string.temperature,
+                        "temperature" in state.runtimeOptions,
+                        { change(state.copy(temperature = it)) },
                     )
 
-                    // 3. Temperature & Seed (with random seed toggle)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        OutlinedTextField(
-                            state.temperature,
-                            { change(state.copy(temperature = it)) },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            enabled = "temperature" in state.runtimeOptions,
-                            label = { Text(stringResource(R.string.temperature)) },
-                        )
-                        OutlinedTextField(
-                            state.seed,
-                            { change(state.copy(seed = it)) },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            enabled = "seed" in state.runtimeOptions,
-                            label = { Text(stringResource(R.string.seed)) },
-                            trailingIcon = {
-                                IconButton(onClick = {
-                                    val nextSeed = if (state.seed == "-1") kotlin.random.Random.nextInt(1, 999999).toString() else "-1"
-                                    change(state.copy(seed = nextSeed))
-                                }) {
-                                    Icon(Icons.Default.Refresh, contentDescription = "Toggle Random Seed")
-                                }
-                            }
-                        )
-                    }
-
-                    // 4. Top P & Top K
+                    // 3. Top P & Top K
                     OptionPair(
                         state.topP,
                         R.string.top_p,
@@ -495,7 +484,7 @@ private fun AdvancedOptions(state: UiState, change: (UiState) -> Unit) {
                         { change(state.copy(topK = it)) },
                     )
 
-                    // 5. Repetition Penalty & Fade-out Window (ms)
+                    // 4. Repetition Penalty & Fade-out Window (ms)
                     OptionPair(
                         state.penalty,
                         R.string.repetition_penalty,
@@ -505,6 +494,24 @@ private fun AdvancedOptions(state: UiState, change: (UiState) -> Unit) {
                         R.string.fade_window,
                         "fade_window" in state.runtimeOptions,
                         { change(state.copy(fadeWindowMs = it)) },
+                    )
+
+                    // 5. Random Seed (with toggle button)
+                    OutlinedTextField(
+                        state.seed,
+                        { change(state.copy(seed = it)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        enabled = "seed" in state.runtimeOptions,
+                        label = { Text(stringResource(R.string.seed)) },
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                val nextSeed = if (state.seed == "-1") kotlin.random.Random.nextInt(1, 999999).toString() else "-1"
+                                change(state.copy(seed = nextSeed))
+                            }) {
+                                Icon(Icons.Default.Refresh, contentDescription = "Toggle Random Seed")
+                            }
+                        }
                     )
 
                     // 6. Dynamic Tail Padding (Option A 100% NPU) Switch
