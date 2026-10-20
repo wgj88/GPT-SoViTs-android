@@ -215,7 +215,7 @@ private fun SynthesisScreen(
                 value = state.text,
                 onValueChange = { change(state.copy(text = it)) },
                 label = { Text(stringResource(R.string.input_text)) },
-                placeholder = { Text(stringResource(R.string.default_sample_text)) },
+                placeholder = { Text(stringResource(R.string.input_text_placeholder)) },
                 minLines = 4,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -233,17 +233,18 @@ private fun SynthesisScreen(
                 Icon(Icons.Default.Mic, null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    val referenceTitle = if (state.referenceUri == null) {
-                        stringResource(R.string.reference_model_preset)
-                    } else {
-                        stringResource(R.string.reference_temporary, state.referenceName)
+                    val referenceTitle = when {
+                        state.referenceUri != null -> stringResource(R.string.reference_temporary, state.referenceName)
+                        state.hasPresetSpeaker -> stringResource(R.string.reference_model_preset)
+                        else -> stringResource(R.string.reference_custom_title)
                     }
                     Text(referenceTitle, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Text(
-                        stringResource(
-                            if (state.referenceUri == null) R.string.ui_reference_preset_detail
-                            else R.string.ui_reference_temporary_detail,
-                        ),
+                        when {
+                            state.referenceUri != null -> stringResource(R.string.ui_reference_temporary_detail)
+                            state.hasPresetSpeaker -> stringResource(R.string.ui_reference_preset_detail)
+                            else -> stringResource(R.string.reference_custom_hint)
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -261,8 +262,22 @@ private fun SynthesisScreen(
                 LanguageChoices(R.string.reference_language, state.referenceLanguage) {
                     change(state.copy(referenceLanguage = it))
                 }
-                TextButton(onClick = { change(state.copy(referenceUri = null, referenceName = "", referencePrompt = "")) }) {
-                    Text(stringResource(R.string.reference_use_preset))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = pickReference,
+                        enabled = !state.busy && state.referenceOverrideSupported,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Icon(Icons.Default.UploadFile, null)
+                        Spacer(Modifier.width(4.dp))
+                        Text(stringResource(R.string.reference_choose_other))
+                    }
+                    TextButton(
+                        onClick = { change(state.copy(referenceUri = null, referenceName = "", referencePrompt = "")) },
+                        enabled = !state.busy,
+                    ) {
+                        Text(stringResource(if (state.hasPresetSpeaker) R.string.reference_use_preset else R.string.reference_clear))
+                    }
                 }
             } else {
                 OutlinedButton(
@@ -274,6 +289,11 @@ private fun SynthesisScreen(
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.reference_choose_audio))
                 }
+                Text(
+                    stringResource(R.string.reference_select_audio_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 if (state.modelLoaded && !state.referenceOverrideSupported) {
                     Text(
                         stringResource(R.string.ui_reference_unavailable),

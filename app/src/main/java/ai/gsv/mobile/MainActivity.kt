@@ -113,6 +113,7 @@ class MainActivity : ComponentActivity() {
             referenceExactPcm16kSamples = loaded?.referencePcm16kSamples?.takeIf {
                 loaded.referenceDurationPolicy == "exact_samples" && it > 0
             },
+            hasPresetSpeaker = loaded?.runtimeFile("sample_prompt.wav")?.isFile == true,
             canPlay = restoredOutput != null,
             serverEnabled = GsvRuntime.apiEndpoint != null,
             serverStatus = GsvRuntime.apiEndpoint?.let { "$it · POST /v1/audio/speech" }
@@ -160,9 +161,9 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val candidateFiles = listOf(
-                    File(Environment.getExternalStorageDirectory(), "models/gsv/v5turbo-npu-default.gsvm"),
-                    File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "v5turbo-npu-default.gsvm"),
-                    File(Environment.getExternalStorageDirectory(), "models/gs/v5turbo-npu-default.gsvm"),
+                    File(Environment.getExternalStorageDirectory(), "models/gsv/v5turbo-snapdragon-npu.gsvm"),
+                    File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "v5turbo-snapdragon-npu.gsvm"),
+                    File(Environment.getExternalStorageDirectory(), "models/gs/v5turbo-snapdragon-npu.gsvm"),
                 )
                 val defaultFile = candidateFiles.firstOrNull { it.isFile }
                 withContext(Dispatchers.Main) {
@@ -383,6 +384,7 @@ class MainActivity : ComponentActivity() {
                     backend = engine.backendName,
                     runtimeOptions = it.runtimeOptions,
                     referenceOverrideSupported = it.referenceInputVersion >= 1,
+                    hasPresetSpeaker = it.runtimeFile("sample_prompt.wav").isFile,
                     referenceExactPcm16kSamples = it.referencePcm16kSamples.takeIf { samples ->
                         it.referenceDurationPolicy == "exact_samples" && samples > 0
                     },
@@ -413,12 +415,28 @@ class MainActivity : ComponentActivity() {
 
     private fun synthesize() {
         val state = ui
+        if (state.text.isBlank()) {
+            val hint = getString(R.string.text_required_hint)
+            android.widget.Toast.makeText(this, hint, android.widget.Toast.LENGTH_SHORT).show()
+            ui = ui.copy(status = hint)
+            return
+        }
+        if (state.referenceUri == null && !state.hasPresetSpeaker) {
+            val hint = getString(R.string.reference_required_hint)
+            android.widget.Toast.makeText(this, hint, android.widget.Toast.LENGTH_SHORT).show()
+            ui = ui.copy(status = hint)
+            return
+        }
         if (state.referenceUri != null && state.referencePrompt.isBlank()) {
-            ui = ui.copy(status = getString(R.string.reference_prompt_required))
+            val hint = getString(R.string.reference_prompt_required)
+            android.widget.Toast.makeText(this, hint, android.widget.Toast.LENGTH_SHORT).show()
+            ui = ui.copy(status = hint)
             return
         }
         if (state.referenceUri != null && !state.referenceOverrideSupported) {
-            ui = ui.copy(status = getString(R.string.reference_not_supported))
+            val hint = getString(R.string.reference_not_supported)
+            android.widget.Toast.makeText(this, hint, android.widget.Toast.LENGTH_SHORT).show()
+            ui = ui.copy(status = hint)
             return
         }
         File(cacheDir, "tts.wav").delete()
@@ -674,7 +692,7 @@ internal data class UiState(
     val modelLoaded: Boolean = false,
     val backend: String = "",
     val status: String = "",
-    val text: String = "你好，欢迎使用 GPT-SoVITS V5 骁龙 NPU 离线语音合成。",
+    val text: String = "",
     val textLanguage: String = "auto",
     val temperature: String = "1.0",
     val topP: String = "1.0",
@@ -684,6 +702,7 @@ internal data class UiState(
     val steps: String = "32",
     val busy: Boolean = false,
     val canPlay: Boolean = false,
+    val hasPresetSpeaker: Boolean = false,
     val referenceUri: Uri? = null,
     val referenceName: String = "",
     val referencePrompt: String = "",

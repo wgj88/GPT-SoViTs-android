@@ -107,9 +107,17 @@
     <string name="reference_model_preset">Model preset</string>
     <string name="reference_temporary">Temporary: %1$s</string>
     <string name="reference_choose_audio">Choose audio</string>
+    <string name="reference_choose_other">Change audio</string>
+    <string name="reference_clear">Clear audio</string>
     <string name="reference_use_preset">Use model preset</string>
     <string name="reference_prompt">Matching transcript</string>
     <string name="reference_prompt_required">Enter the transcript matching the temporary reference audio.</string>
+    <string name="reference_required_hint">Please select a 3~10s reference audio sample to clone.</string>
+    <string name="reference_custom_title">Custom Reference (Voice Cloning)</string>
+    <string name="reference_custom_hint">Select a 3~10s audio sample to clone target voice.</string>
+    <string name="reference_select_audio_hint">Supports local WAV, MP3, M4A, FLAC recordings.</string>
+    <string name="input_text_placeholder">Enter text to synthesize…</string>
+    <string name="text_required_hint">Please enter text to synthesize.</string>
     <string name="reference_not_supported">This package has no runtime reference-input graph. Reconvert it with the current tool to use a temporary reference.</string>
     <string name="reference_decoding">Decoding temporary reference audio…</string>
     <string name="reference_audio_invalid">Reference audio could not be decoded: %1$s</string>

@@ -79,8 +79,13 @@ class V5TurboBridgeSession(
                         syncSpeakerIfNeeded(request.reference)
                     }
                 } else if (cachedSpeakerHash == null) {
-                    TimingContext.measure("model.preset_speaker.sync") {
-                        syncModelPresetSpeaker()
+                    val presetWav = model.runtimeFile("sample_prompt.wav")
+                    if (presetWav.isFile) {
+                        TimingContext.measure("model.preset_speaker.sync") {
+                            syncModelPresetSpeaker()
+                        }
+                    } else {
+                        throw IllegalArgumentException("请先选择参考音频并输入对应文本以进行音色克隆")
                     }
                 }
 

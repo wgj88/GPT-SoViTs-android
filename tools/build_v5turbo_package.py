@@ -53,7 +53,7 @@ def build_v5turbo_package(output_path: str, prompt_wav_path: str = None):
         })
 
     manifest = {
-        "name": "GPT-SoVITS V5 Turbo (Snapdragon NPU)",
+        "name": "GPT-SoVITS V5 骁龙 NPU 离线引擎",
         "model_version": "v5turbo",
         "product_version": "5.0-npu-turbo",
         "sample_rate": 48000,
@@ -88,6 +88,5 @@ def build_v5turbo_package(output_path: str, prompt_wav_path: str = None):
     return out
 
 if __name__ == "__main__":
-    prompt_wav = "/data/data/com.termux/files/home/gpt-sovits-v5-lab/sample_prompt.wav"
-    out_file = "/data/data/com.termux/files/home/GPT-SoViTs-android/deploy/v5turbo-npu-default.gsvm"
-    build_v5turbo_package(out_file, prompt_wav_path=prompt_wav)
+    out_file = "/data/data/com.termux/files/home/GPT-SoViTs-android/deploy/v5turbo-snapdragon-npu.gsvm"
+    build_v5turbo_package(out_file, prompt_wav_path=None)

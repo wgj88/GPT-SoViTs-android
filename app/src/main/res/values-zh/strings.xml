@@ -107,9 +107,17 @@
     <string name="reference_model_preset">模型预设</string>
     <string name="reference_temporary">临时使用：%1$s</string>
     <string name="reference_choose_audio">选择音频</string>
+    <string name="reference_choose_other">更换录音</string>
+    <string name="reference_clear">清除已选</string>
     <string name="reference_use_preset">使用模型预设</string>
     <string name="reference_prompt">对应文本</string>
     <string name="reference_prompt_required">请输入与临时参考音频对应的文本。</string>
+    <string name="reference_required_hint">请在“参考语音”中选择一段 3~10 秒的录音以克隆音色。</string>
+    <string name="reference_custom_title">自定义参考录音（音色克隆）</string>
+    <string name="reference_custom_hint">请选择 3~10 秒的录音样本以克隆目标音色。</string>
+    <string name="reference_select_audio_hint">支持从本地选取 WAV、MP3、M4A、FLAC 格式录音文件。</string>
+    <string name="input_text_placeholder">请输入希望朗读的文字内容…</string>
+    <string name="text_required_hint">请输入需要合成的文本内容。</string>
     <string name="reference_not_supported">此模型包没有运行时参考输入图，请使用当前工具重新转换后再临时更换参考语音。</string>
     <string name="reference_decoding">正在解码临时参考音频…</string>
     <string name="reference_audio_invalid">无法解码参考音频：%1$s</string>
